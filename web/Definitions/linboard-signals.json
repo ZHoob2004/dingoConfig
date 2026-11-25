@@ -1,0 +1,17 @@
+{
+  "messages": [
+    {
+      "idOffset": 2,
+      "signals": [
+        { "target": "DeviceState", "dbc": { "name": "DeviceState", "startBit": 0, "length": 8 } },
+        { "target": "Heartbeat", "dbc": { "name": "Heartbeat", "startBit": 56, "length": 8 } }
+      ]
+    },
+    {
+      "idOffset": 3,
+      "signals": [
+        { "target": "NetworkKeepAwake", "dbc": { "name": "NetworkKeepAwake", "startBit": 48, "length": 1 } }
+      ]
+    }
+  ]
+}
