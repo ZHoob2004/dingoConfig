@@ -46,6 +46,13 @@ public class FwDevice : IDeviceConfigurable
     public event Action<string>? SuccessNotification;
     
     [JsonPropertyName("sleepEnabled")] public bool SleepEnabled { get; set; }
+    [JsonPropertyName("networkKeepAwakeEnabled")] public bool NetworkKeepAwakeEnabled { get; set; }
+    // Requests are sent only while the device has local demand; expire the
+    // displayed state when requests stop arriving.
+    private long _networkKeepAwakeUntil;
+    private int? _networkKeepAwakeOffset;
+    [JsonIgnore][Plotable(displayName:"NetworkKeepAwake")]
+    public bool NetworkKeepAwake => Environment.TickCount64 < Interlocked.Read(ref _networkKeepAwakeUntil);
     [JsonPropertyName("filtersEnabled")] public bool CanFiltersEnabled { get; set; }
     [JsonPropertyName("disableDigInWake")] public bool DisableDigInWake { get; set; }
     [JsonPropertyName("disableCanWake")] public bool DisableCanWake { get; set; }
@@ -145,6 +152,8 @@ public class FwDevice : IDeviceConfigurable
         _setters["BatteryVoltage"]   = val => BatteryVoltage = val;
         _setters["BoardTempC"]       = val => BoardTempC = val;
         _setters["Heartbeat"]        = val => Heartbeat = (int)val;
+        _setters["NetworkKeepAwake"] = val =>
+            Interlocked.Exchange(ref _networkKeepAwakeUntil, val != 0 ? Environment.TickCount64 + 500 : 0);
         _setters["Wiper.SlowState"]  = val => Wipers.SlowState = val != 0;
         _setters["Wiper.FastState"]  = val => Wipers.FastState = val != 0;
         _setters["Wiper.Speed"]      = val => Wipers.Speed = (WiperSpeed)val;
@@ -179,6 +188,8 @@ public class FwDevice : IDeviceConfigurable
         RegisterAccessors();
         CyclicSigs = new Dictionary<int, List<(DbcSignal Signal, Action<double> SetValue)>>();
         _maxCyclicOffset = ConfigTxOffset;
+        _networkKeepAwakeOffset = null;
+        Interlocked.Exchange(ref _networkKeepAwakeUntil, 0);
 
         foreach (var msgDef in config.Messages)
         {
@@ -186,6 +197,8 @@ public class FwDevice : IDeviceConfigurable
 
             foreach (var sigDef in msgDef.Signals)
             {
+                if (sigDef.Target == "NetworkKeepAwake")
+                    _networkKeepAwakeOffset = msgDef.IdOffset;
                 for (var i = 0; i < sigDef.Count; i++)
                 {
                     var globalIdx = sigDef.StartIndex + i;
@@ -474,6 +487,13 @@ public class FwDevice : IDeviceConfigurable
                 GetValue = () => BitRate2, SetValue = val => BitRate2 = (CanBitRate)val,
                 ValueType = BitRate2.GetType(),
                 DefaultValue = CanBitRate.BitRate500K
+            },
+            new DeviceParameter
+            {
+                ParentName = Name, Name = "device.networkKeepAwakeEnabled", Index = BaseIndex, SubIndex = subIndex++,
+                GetValue = () => NetworkKeepAwakeEnabled, SetValue = val => NetworkKeepAwakeEnabled = (bool)val,
+                ValueType = NetworkKeepAwakeEnabled.GetType(),
+                DefaultValue = false
             }
         ]);
         
@@ -504,6 +524,7 @@ public class FwDevice : IDeviceConfigurable
 
     private void Clear()
     {
+        Interlocked.Exchange(ref _networkKeepAwakeUntil, 0);
         foreach(var input in DigitalInputs)
             input.State = false;
 
@@ -558,6 +579,14 @@ public class FwDevice : IDeviceConfigurable
             Firmware.HandleReply(data);
             return;
         }
+
+        // Reject unrelated traffic at the same ID unless the version, embedded
+        // sender base ID and reserved flags match the network protocol.
+        if (_networkKeepAwakeOffset == offset &&
+            (data.Length != 8 || data[0] != 0x44 || data[1] != 0x4E ||
+             data[2] != 0x47 || data[3] != 1 ||
+             (data[4] | (data[5] << 8)) != BaseId || (data[6] & 0xFE) != 0))
+            return;
 
         // Use dictionary lookup for status messages
         if (CyclicSigs.TryGetValue(offset, out var signals))

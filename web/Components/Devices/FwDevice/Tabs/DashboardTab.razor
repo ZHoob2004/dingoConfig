@@ -80,6 +80,11 @@
                                  Size="Size.Small" Style="min-width: 100px;">
                             Sleep Enabled
                         </MudChip>
+                        <MudChip T="string" Variant="Variant.Outlined"
+                                 Color="@(Device.NetworkKeepAwake ? Color.Success : Color.Default)"
+                                 Size="Size.Small" Style="min-width: 100px;">
+                            Network Keep-Awake
+                        </MudChip>
                     </MudCardContent>
                 </MudCard>
             </MudItem>

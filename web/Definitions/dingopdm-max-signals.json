@@ -297,6 +297,12 @@
       "signals": [
         { "target": "LuaScript.Value", "count": 2, "startIndex": 30, "dbc": { "name": "LuaOut{n}.Value", "length": 32, "isSigned": true, "factor": 0.001 } }
       ]
+    },
+    {
+      "idOffset": 53,
+      "signals": [
+        { "target": "NetworkKeepAwake", "dbc": { "name": "NetworkKeepAwake", "startBit": 48, "length": 1 } }
+      ]
     }
-]
+  ]
 }
