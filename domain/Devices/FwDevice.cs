@@ -31,7 +31,8 @@ public class FwDevice : IDeviceConfigurable
     [JsonIgnore] public const int ConfigRxOffset = 0;
     [JsonIgnore] public const int ConfigTxOffset = 1;
     [JsonIgnore] public const int CyclicRxOffset = 2;
-    [JsonIgnore] public int MaxCyclicId { get; private set; }
+    [JsonIgnore] public int MaxCyclicId => BaseId + _maxCyclicOffset;
+    private int _maxCyclicOffset = ConfigTxOffset;
 
     [JsonIgnore] public List<DeviceVariable> VarMap { get; set; } = null!;
     [JsonIgnore] public List<DeviceParameter> Params { get; set; } = null!;
@@ -177,6 +178,7 @@ public class FwDevice : IDeviceConfigurable
     {
         RegisterAccessors();
         CyclicSigs = new Dictionary<int, List<(DbcSignal Signal, Action<double> SetValue)>>();
+        _maxCyclicOffset = ConfigTxOffset;
 
         foreach (var msgDef in config.Messages)
         {
@@ -202,8 +204,7 @@ public class FwDevice : IDeviceConfigurable
                 }
             }
 
-            if ((msgDef.IdOffset + BaseId ) > MaxCyclicId)
-                MaxCyclicId = msgDef.IdOffset + BaseId;
+            _maxCyclicOffset = Math.Max(_maxCyclicOffset, msgDef.IdOffset);
         }
     }
 
