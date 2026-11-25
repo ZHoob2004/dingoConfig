@@ -114,7 +114,7 @@
     "hasBattVoltSense": false,
     "hasExtTempSensor": false,
     "hasUsb": false,
-    "canSleep": false,
+    "canSleep": true,
     "canBootloader": false,
     "minMajorVersion": 0,
     "minMinorVersion": 5,
